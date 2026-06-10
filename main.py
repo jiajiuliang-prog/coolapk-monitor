@@ -1,48 +1,60 @@
-import os
 import requests
 import feedparser
-import json
+import os
+import time
 
+# Configuration
 RSS_URL = "https://rsshub.app/coolapk/hot"
 STATE_FILE = "last_id.txt"
+BARK_URL = os.environ.get("BARK_URL")
 
-def notify(title, content):
-    print(f"New Post: {title}")
+def notify_bark(title, content):
+    if not BARK_URL:
+        print("BARK_URL not set, skipping notification")
+        return
     
-    # Bark
-    bark_url = os.getenv("BARK_URL")
-    if bark_url:
-        requests.get(f"{bark_url}/{title}/{content}")
-        
-    # Pushdeer
-    pushdeer_key = os.getenv("PUSHDEER_KEY")
-    if pushdeer_key:
-        requests.get("https://api2.pushdeer.com/message/push", params={"pushkey": pushdeer_key, "text": title, "desp": content})
+    url = f"{BARK_URL.rstrip('/')}/{title}/{content}"
+    try:
+        requests.get(url)
+    except Exception as e:
+        print(f"Failed to send Bark notification: {e}")
 
 def main():
+    print(f"Fetching RSS feed from {RSS_URL}...")
     feed = feedparser.parse(RSS_URL)
+    
     if not feed.entries:
-        print("No entries found.")
+        print("No entries found in feed.")
         return
 
-    latest_entry = feed.entries[0]
-    latest_id = latest_entry.id
-
-    # Read last seen ID
+    # Load last seen ID
     last_id = ""
     if os.path.exists(STATE_FILE):
         with open(STATE_FILE, "r") as f:
             last_id = f.read().strip()
 
-    if latest_id != last_id:
-        notify(latest_entry.title, latest_entry.link)
-        
-        # Save new state
-        with open(STATE_FILE, "w") as f:
-            f.write(latest_id)
-        print(f"Updated last_id to {latest_id}")
-    else:
+    new_entries = []
+    for entry in feed.entries:
+        if entry.id == last_id:
+            break
+        new_entries.append(entry)
+
+    if not new_entries:
         print("No new posts.")
+        # FORCE NOTIFICATION FOR TESTING
+        if os.environ.get("GITHUB_EVENT_NAME") == "push":
+             notify_bark("Coolapk Monitor Test", "Test notification triggered by manual push!")
+        return
+
+    print(f"Found {len(new_entries)} new posts.")
+    
+    # Notify for the newest post
+    latest = new_entries[0]
+    notify_bark("Coolapk: " + latest.title, latest.link)
+
+    # Update state
+    with open(STATE_FILE, "w") as f:
+        f.write(feed.entries[0].id)
 
 if __name__ == "__main__":
     main()
