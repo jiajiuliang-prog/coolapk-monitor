@@ -72,7 +72,7 @@ def main():
     # Load last seen ID
     last_id = ""
     if os.path.exists(STATE_FILE):
-        with open(STATE_FILE, \"r\") as f:
+        with open(STATE_FILE, "r") as f:
             last_id = f.read().strip()
             print(f"Last processed ID: {last_id}")
 
@@ -92,11 +92,11 @@ def main():
 
     # Always update state to the latest entry to avoid duplicate notifications
     if feed.entries:
-        with open(STATE_FILE, \"w\") as f:
+        with open(STATE_FILE, "w") as f:
             f.write(feed.entries[0].id)
         print(f"Updated state with latest ID: {feed.entries[0].id}")
 
     print("--- Coolapk Monitor End ---")
 
-if __name__ == \"__main__\":
+if __name__ == "__main__":
     main()
