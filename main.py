@@ -5,7 +5,7 @@ import time
 import urllib.parse
 
 # Configuration
-RSS_URL = "https://rsshub.app/coolapk/hot"
+RSS_URL = "https://rsshub.rssforever.com/coolapk/hot"
 STATE_FILE = "last_id.txt"
 BARK_URL = os.environ.get("BARK_URL")
 
@@ -48,11 +48,21 @@ def notify_bark(title, content):
 
 def main():
     print("--- Coolapk Monitor Start ---")
+    
+    # For testing purposes, we always send a notification on 'push' at the very start
+    if os.environ.get("GITHUB_EVENT_NAME") == "push":
+        print("Manual Push detected: Sending TEST notification at start.")
+        notify_bark("Coolapk Monitor Test", "Connection successful! Monitoring is active.")
+
     print(f"Fetching RSS feed from {RSS_URL}...")
     try:
-        feed = feedparser.parse(RSS_URL)
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+        # Use requests to fetch with headers, then parse text with feedparser
+        response = requests.get(RSS_URL, headers=headers, timeout=15)
+        response.raise_for_status()
+        feed = feedparser.parse(response.text)
     except Exception as e:
-        print(f"CRITICAL: Failed to parse feed: {e}")
+        print(f"CRITICAL: Failed to fetch or parse feed: {e}")
         return
     
     if not feed.entries:
@@ -62,7 +72,7 @@ def main():
     # Load last seen ID
     last_id = ""
     if os.path.exists(STATE_FILE):
-        with open(STATE_FILE, "r") as f:
+        with open(STATE_FILE, \"r\") as f:
             last_id = f.read().strip()
             print(f"Last processed ID: {last_id}")
 
@@ -71,11 +81,6 @@ def main():
         if entry.id == last_id:
             break
         new_entries.append(entry)
-
-    # For testing purposes, we always send a notification on 'push'
-    if os.environ.get("GITHUB_EVENT_NAME") == "push":
-        print("Manual Push detected: Sending TEST notification regardless of feed state.")
-        notify_bark("Coolapk Monitor Test", "Connection successful! Monitoring is active.")
 
     if not new_entries:
         print("No new posts found since last check.")
@@ -87,11 +92,11 @@ def main():
 
     # Always update state to the latest entry to avoid duplicate notifications
     if feed.entries:
-        with open(STATE_FILE, "w") as f:
+        with open(STATE_FILE, \"w\") as f:
             f.write(feed.entries[0].id)
         print(f"Updated state with latest ID: {feed.entries[0].id}")
 
     print("--- Coolapk Monitor End ---")
 
-if __name__ == "__main__":
+if __name__ == \"__main__\":
     main()
